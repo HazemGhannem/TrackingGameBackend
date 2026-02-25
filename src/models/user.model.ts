@@ -6,7 +6,7 @@ const UserSchema = new Schema<IUserDocument>(
   {
     username: { type: String, required: true, trim: true },
     email: { type: String, required: true, unique: true, lowercase: true },
-    password: { type: String, required: true, minlength: 6 },
+    password: { type: String, required: true, minlength: 8 },
     favorites: [{ type: Schema.Types.ObjectId, ref: 'Favorite' }],
   },
   {

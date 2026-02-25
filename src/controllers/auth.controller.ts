@@ -13,6 +13,7 @@ export const signup = async (req: Request, res: Response) => {
 // Login controller
 export const login = async (req: Request, res: Response) => {
   try {
+    console.log(req.body,"hel");
     const { email, password } = req.body;
     const result = await loginUser({ email, password });
     res.status(200).json(result);
