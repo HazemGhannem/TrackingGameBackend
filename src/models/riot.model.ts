@@ -8,6 +8,7 @@ const PlayerSchema = new mongoose.Schema<PlayerProfile>(
     tagLine: { type: String },
     profileIconId: { type: Number },
     summonerLevel: { type: Number },
+    platform: { type: String, default: 'euw1' },
     ranked: {
       leagueId: String,
       queueType: String,

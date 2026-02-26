@@ -6,8 +6,12 @@ import authRoutes from './routers/auther.router';
 import riotRoutes from './routers/riot.router';
 import favoriteRoutes from './routers/favorite.router';
 import cookieParser from 'cookie-parser';
+import { createServer } from 'http';
+import { initSocket } from './socket.server';
+import { startPollingJob } from './services/LiveGame.job';
 
 const app = express();
+const httpServer = createServer(app);
 connectDB();
 
 app.use(
@@ -22,10 +26,17 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/riot', riotRoutes);
 app.use('/api/favorites', favoriteRoutes);
-app.get('/', (req, res) => {
-  res.json({ message: 'LoL API Server Running' });
-});
 
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
+async function start() {
+  await connectDB();;
+
+  initSocket(httpServer);
+
+  startPollingJob();
+
+  httpServer.listen(5000, () => {
+    console.log('[Server] Running on http://localhost:5000');
+  });
+}
+
+start();

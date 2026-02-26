@@ -12,15 +12,16 @@ export interface RankedInfo {
   hotStreak: boolean;
 }
 export interface PlayerProfile {
-  _id?: string;  
+  _id?: string;
   puuid: string;
   gameName: string;
   tagLine?: string;
+  platform?: string;
   profileIconId?: number;
   summonerLevel?: number;
   ranked?: RankedInfo;
-  createdAt?: string;  
-  updatedAt?: string; 
+  createdAt?: string;
+  updatedAt?: string;
 }
 export interface RiotAccount {
   puuid: string;
