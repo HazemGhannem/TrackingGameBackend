@@ -1,25 +1,26 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
+import { AuthRequest } from '../middleware/auth.middleware';
 import {
   addFavorite,
   getUserFavorites,
   removeFavorite,
 } from '../services/favorite.service';
 
-export async function add(req: Request, res: Response) {
+export async function add(req: AuthRequest, res: Response) {
   try {
-    const userId = req.body.userId as string;
-    const playerId = req.body.playerId as string;
+    const userId = req.user!._id;
+    const { playerId } = req.body;
 
     const favorite = await addFavorite(userId, playerId);
-    console.log(favorite);
     res.status(201).json(favorite);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
 }
-export async function remove(req: Request, res: Response) {
+
+export async function remove(req: AuthRequest, res: Response) {
   try {
-     const favoriteId = req.params.favoriteId as string;
+    const favoriteId = req.params.favoriteId as string;
 
     await removeFavorite(favoriteId);
     res.status(200).json({ message: 'Removed from favorites' });
@@ -27,9 +28,10 @@ export async function remove(req: Request, res: Response) {
     res.status(400).json({ error: err.message });
   }
 }
-export async function list(req: Request, res: Response) {
+
+export async function list(req: AuthRequest, res: Response) {
   try {
-    const userId = req.params.userId as string;
+    const userId = req.user!._id;
 
     const favorites = await getUserFavorites(userId);
     res.status(200).json(favorites);
