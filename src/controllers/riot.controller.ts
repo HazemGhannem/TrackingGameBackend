@@ -1,62 +1,52 @@
 import { Request, Response } from 'express';
-import { getAccountByRiotId, getFullPlayerProfile } from '../services/riot.service';
-import { MatchType, PlatformRegion, RiotRegion } from '../interfaces/riot.interface';
+import {
+  getPlayerProfileWithFallback,
+} from '../services/riot.service';
+import {
+  MatchType,
+} from '../interfaces/riot.interface';
+import { resoleRegionsFromTag } from '../utils/utiles';
 
-export const fetchAccount = async (req: Request, res: Response) => {
-  try {
-    const { region, gameName, tagLine } = req.query;
 
-    if (!region || !gameName || !tagLine) {
-      return res.status(400).json({
-        error: 'region, gameName and tagLine are required',
-      });
-    }
-
-    const account = await getAccountByRiotId(
-      region as string,
-      gameName as string,
-      tagLine as string,
-    );
-
-    res.json(account);
-  } catch (error: any) {
-    res.status(error.response?.status || 500).json({
-      error: error.response?.data || 'Internal Server Error',
-    });
-  }
-};
 export const fetchPlayerProfile = async (req: Request, res: Response) => {
   try {
-     const { region, platform, puuid: rawPuuid } = req.params;
-     const puuid = Array.isArray(rawPuuid) ? rawPuuid[0] : rawPuuid;
-      const matchPage = Number(req.query.matchPage) || 1;
-      const matchPageSize = Number(req.query.matchPageSize) || 15;
-      const masteryPage = Number(req.query.masteryPage) || 1;
-      const masteryPageSize = Number(req.query.masteryPageSize) || 1;
-      const matchType = req.query.matchType as MatchType;
-    if (!puuid ) {
+    const { name, tag } = req.params;
+    const riotName = decodeURIComponent(Array.isArray(name) ? name[0] : name);
+    const riotTag = decodeURIComponent(Array.isArray(tag) ? tag[0] : tag);
+    if (!riotName || !riotTag) {
       return res.status(400).json({
-        error: 'puuid is required',
+        error: 'Riot Name and Tag are required (e.g., /EUW/Name/Tag)',
       });
     }
 
-      const profile = await getFullPlayerProfile(
-        region as RiotRegion,
-        platform as PlatformRegion,
-        puuid,
-        {
-          matchPage,
-          matchPageSize,
-          masteryPage,
-          masteryPageSize,
-          matchType,
-        },
-      );
+    const matchPage = Number(req.query.matchPage) || 1;
+    const matchPageSize = Number(req.query.matchPageSize) || 15;
+    const masteryPage = Number(req.query.masteryPage) || 1;
+    const masteryPageSize = Number(req.query.masteryPageSize) || 10;
+    const matchType = req.query.matchType as MatchType;
+    const { platformRegion, routingRegion } = resoleRegionsFromTag(riotTag);
+
+    const profile = await getPlayerProfileWithFallback(
+      riotName,
+      riotTag,
+      routingRegion,
+      platformRegion,
+      {
+        matchPage,
+        matchPageSize,
+        masteryPage,
+        masteryPageSize,
+        matchType,
+      },
+    );
 
     res.json(profile);
   } catch (error: any) {
     res.status(error.response?.status || 500).json({
-      error: error.response?.data || 'Internal Server Error',
+      error:
+        error.response?.data?.status?.message ||
+        error.message ||
+        'Internal Server Error',
     });
   }
 };

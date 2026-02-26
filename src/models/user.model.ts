@@ -12,14 +12,14 @@ const UserSchema = new Schema<IUserDocument>(
   {
     timestamps: true,
     toJSON: {
-      transform(doc, ret:any) {
-        delete ret.password; 
+      transform(doc, ret: any) {
+        delete ret.password;
         return ret;
       },
     },
     toObject: {
-      transform(doc, ret:any) {
-        delete ret.password; 
+      transform(doc, ret: any) {
+        delete ret.password;
         return ret;
       },
     },

@@ -2,12 +2,14 @@ import axios, { AxiosInstance } from 'axios';
 import {
   PaginationOptions,
   PlatformRegion,
+  PlayerProfile,
   RiotAccount,
   RiotRegion,
 } from '../interfaces/riot.interface';
 import { Redis } from 'ioredis';
 import { REDIS_URL, RIOT_API_KEY } from '../config/env';
-
+import PlayerModel from '../models/riot.model';
+import { resoleRegionsFromTag } from '../utils/utiles';
 
 const redis = new Redis(REDIS_URL);
 const riotApi: AxiosInstance = axios.create({
@@ -33,25 +35,55 @@ riotApi.interceptors.response.use(
   },
 );
 
-const riotHeaders = {
-  headers: { 'X-Riot-Token': RIOT_API_KEY },
-};
-
+async function createOrUpdateDB(
+  puuid: string,
+  data: Record<string, any>,
+): Promise<(Document & PlayerProfile) | null> {
+  return PlayerModel.findOneAndUpdate(
+    { puuid },
+    { $set: data },
+    {
+      new: true,
+      upsert: true,
+      setDefaultsOnInsert: true,
+    },
+  );
+}
 export const getAccountByRiotId = async (
-  region: string,
   gameName: string,
   tagLine: string,
 ): Promise<RiotAccount> => {
-  const url = `https://${region}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${encodeURIComponent(
+  const { platformRegion, routingRegion } = resoleRegionsFromTag(tagLine);
+  const cacheKey = `basic:${platformRegion}:${gameName}${tagLine}`;
+  const cached = await redis.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+  console.log(routingRegion, platformRegion);
+  const response = await riotApi.get(
+    `https://${routingRegion}.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}`,
+  );
+  const { puuid } = response.data;
+  const [summonerRes, rankedRes] = await Promise.all([
+    riotApi.get(
+      `https://${platformRegion}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${puuid}`,
+    ),
+    riotApi.get(
+      `https://${platformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`,
+    ),
+  ]);
+  const result = {
+    puuid,
     gameName,
-  )}/${encodeURIComponent(tagLine)}`;
-  const response = await axios.get<RiotAccount>(url, riotHeaders);
-
-  return response.data;
+    tagLine,
+    profileIconId: summonerRes.data.profileIconId,
+    summonerLevel: summonerRes.data.summonerLevel,
+    ranked: rankedRes.data,
+  };
+  await redis.set(cacheKey, JSON.stringify(result), 'EX', 60);
+  return result;
 };
 
 export const getFullPlayerProfile = async (
-  routingRegion: RiotRegion,
+  region: RiotRegion,
   platformRegion: PlatformRegion,
   puuid: string,
   options?: PaginationOptions,
@@ -63,7 +95,11 @@ export const getFullPlayerProfile = async (
     masteryPageSize = 10,
     matchType,
   } = options || {};
-
+  console.log(
+    platformRegion,
+    'platformRegion from getFullPlayerProfile  /// api key:',
+    RIOT_API_KEY,
+  );
   const matchStart = (matchPage - 1) * matchPageSize;
   const masteryStart = (masteryPage - 1) * masteryPageSize;
   const cacheKey = `player:${platformRegion}:${puuid}:mPage=${matchPage}:mSize=${matchPageSize}:maPage=${masteryPage}:maSize=${masteryPageSize}`;
@@ -85,7 +121,7 @@ export const getFullPlayerProfile = async (
       `https://${platformRegion}.api.riotgames.com/lol/league/v4/entries/by-puuid/${puuid}`,
     ),
     riotApi.get(
-      `https://${routingRegion}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids`,
+      `https://${region}.api.riotgames.com/lol/match/v5/matches/by-puuid/${puuid}/ids`,
       {
         params: {
           start: matchStart,
@@ -120,4 +156,71 @@ export const getFullPlayerProfile = async (
   await redis.set(cacheKey, JSON.stringify(result), 'EX', 60);
 
   return result;
+};
+export const getPlayerProfileWithFallback = async (
+  gameName: string,
+  tagLine: string,
+  routingRegion: RiotRegion,
+  platformRegion: PlatformRegion,
+  options?: PaginationOptions,
+) => {
+  // 1️⃣ Try DB first
+  const dbPlayer = await PlayerModel.findOne({
+    gameName: { $regex: new RegExp(`^${gameName}$`, 'i') },
+    tagLine: { $regex: new RegExp(`^${tagLine}$`, 'i') },
+  });
+
+  // Check if DB data is fresh (less than 1 hour old)
+  const isFresh =
+    dbPlayer &&
+    Date.now() - new Date(dbPlayer.updatedAt as any).getTime() < 3600_000;
+
+  if (dbPlayer && isFresh) {
+    console.log('🚀 Data found in DB and is fresh. Returning...');
+    return {
+      summoner: {
+        profileIconId: dbPlayer.profileIconId,
+        summonerLevel: dbPlayer.summonerLevel,
+        puuid: dbPlayer.puuid,
+      },
+      ranked: dbPlayer.ranked,
+      gameName: dbPlayer.gameName,
+      tagLine: dbPlayer.tagLine,
+      _id: dbPlayer._id,
+      source: 'database',
+    };
+  }
+
+  // 2️⃣ Resolve PUUID (from DB if exists, else Riot)
+  let targetPuuid = dbPlayer?.puuid;
+  if (!targetPuuid) {
+    console.log('🔍 Player not in DB. Resolving PUUID from Riot...');
+    const account = await getAccountByRiotId(gameName, tagLine);
+    targetPuuid = account.puuid;
+  }
+
+  // 3️⃣ Fetch full profile from Riot API
+  console.log('🌐 Fetching full profile from Riot API...');
+  const riotData = await getFullPlayerProfile(
+    routingRegion,
+    platformRegion,
+    targetPuuid,
+    options,
+  );
+
+  // 4️⃣ Update DB
+  const dbUpdateData = {
+    puuid: targetPuuid,
+    gameName,
+    tagLine,
+    profileIconId: riotData.summoner.profileIconId,
+    summonerLevel: riotData.summoner.summonerLevel,
+    ranked: riotData.ranked,
+  };
+
+  const savedPlayer = await createOrUpdateDB(targetPuuid, dbUpdateData);
+  if (!savedPlayer) {
+    throw new Error(`Failed to save player ${gameName}#${tagLine} to database`);
+  }
+  return { ...riotData, _id: savedPlayer._id, source: 'riot-api' };
 };

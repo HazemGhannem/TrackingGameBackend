@@ -1,9 +1,8 @@
 import { Router } from 'express';
-import { fetchAccount, fetchPlayerProfile } from '../controllers/riot.controller';
+import {  fetchPlayerProfile } from '../controllers/riot.controller';
 
 const router = Router();
 
-router.get('/account', fetchAccount);
-router.get('/player/:region/:platform/:puuid', fetchPlayerProfile);
+router.get('/player/:name/:tag', fetchPlayerProfile);
 
 export default router;

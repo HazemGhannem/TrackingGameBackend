@@ -1,31 +1,15 @@
 import mongoose, { Schema } from 'mongoose';
 import { IFavorite } from '../interfaces/favorite.interface';
 
-const FavoriteSchema = new Schema<IFavorite>(
+const FavoriteSchema: Schema = new Schema(
   {
-    riotGameName: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    riotTagLine: {
-      type: String,
-      required: true,
-      trim: true,
-    },
-    puuid: {
-      type: String,
-      required: true,
-    },
-    user: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: true,
-    },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    playerId: { type: Schema.Types.ObjectId, ref: 'player', required: true },
+    createdAt: { type: Date, default: Date.now },
   },
-  {
-    timestamps: true,
-  },
+  { timestamps: true },
 );
+
+FavoriteSchema.index({ userId: 1, playerId: 1 }, { unique: true });
 
 export const Favorite = mongoose.model<IFavorite>('Favorite', FavoriteSchema);
