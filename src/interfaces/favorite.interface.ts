@@ -1,5 +1,5 @@
 import { Document, Types } from 'mongoose';
-import { PlayerProfile } from './riot.interface';
+import { PlayerProfile } from './player.interface';
 
 export interface IFavorite extends Document {
   userId: Types.ObjectId;
@@ -7,11 +7,7 @@ export interface IFavorite extends Document {
   createdAt: Date;
 }
 
-export interface FavoriteDocument extends Document {
-  userId: Types.ObjectId;
-  playerId: Types.ObjectId;
-  createdAt: Date;
-}
+export interface FavoriteDocument extends IFavorite {}
 
 export interface PopulatedFavoriteDocument extends Document {
   userId: Types.ObjectId;

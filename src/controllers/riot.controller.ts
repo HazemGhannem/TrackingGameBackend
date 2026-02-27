@@ -1,12 +1,7 @@
 import { Request, Response } from 'express';
-import {
-  getPlayerProfileWithFallback,
-} from '../services/riot.service';
-import {
-  MatchType,
-} from '../interfaces/riot.interface';
+import { getPlayerProfileWithFallback } from '../services/player.service';
+import { MatchType } from '../interfaces/player.interface';
 import { resoleRegionsFromTag } from '../utils/utiles';
-
 
 export const fetchPlayerProfile = async (req: Request, res: Response) => {
   try {

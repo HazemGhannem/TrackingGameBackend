@@ -1,10 +1,10 @@
 import { Response } from 'express';
-import { AuthRequest } from '../middleware/auth.middleware';
 import {
   addFavorite,
   getUserFavorites,
   removeFavorite,
 } from '../services/favorite.service';
+import { AuthRequest } from '../interfaces/auth.interface';
 
 export async function add(req: AuthRequest, res: Response) {
   try {

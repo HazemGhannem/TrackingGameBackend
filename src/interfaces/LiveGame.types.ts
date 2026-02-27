@@ -1,3 +1,5 @@
+import { PlatformRegion } from './player.interface';
+
 export interface LiveGameParticipant {
   puuid: string;
   riotId: string;
@@ -47,7 +49,7 @@ export interface GameStartNotification {
 export interface TeamParticipants {
   blue: LiveGameParticipant[];
   red: LiveGameParticipant[];
-};
+}
 export interface GameEndNotification {
   type: 'GAME_END';
   playerId: string;
@@ -71,4 +73,10 @@ export interface RedisGameEntry {
   championName?: string;
   championId?: number;
   gameStartTime?: number;
+}
+export interface PlayerMapEntry {
+  puuid: string;
+  playerName: string;
+  platform: PlatformRegion;
+  userIds: string[];
 }

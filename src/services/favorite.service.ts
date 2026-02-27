@@ -1,34 +1,29 @@
-import { Types } from 'mongoose';
-import {
-  FavoriteDocument,
-  PopulatedFavoriteDocument,
-} from '../interfaces/favorite.interface';
-import { PlayerProfile } from '../interfaces/riot.interface';
-import { Favorite } from '../models/favorite.model';
+import { PopulatedFavoriteDocument } from '../interfaces/favorite.interface';
+import { PlayerProfile } from '../interfaces/player.interface';
+import Favorite from '../models/favorite.model';
 
-export async function addFavorite(
+export const addFavorite = async (
   userId: string,
   playerId: string,
-): Promise<PopulatedFavoriteDocument> {
+): Promise<PopulatedFavoriteDocument> => {
   const existing = await Favorite.findOne({ userId, playerId }).populate(
     'playerId',
   );
   if (existing) return existing as unknown as PopulatedFavoriteDocument;
 
   const created = await Favorite.create({ userId, playerId });
-  return created.populate('playerId') as unknown as PopulatedFavoriteDocument;
-}
+  return (await created.populate('playerId')) as PopulatedFavoriteDocument;
+};
 
-export async function removeFavorite(favoriteId: string): Promise<void> {
+export const removeFavorite = async (favoriteId: string): Promise<void> => {
   await Favorite.findByIdAndDelete(favoriteId);
-}
-export async function getUserFavorites(
+};
+
+export const getUserFavorites = async (
   userId: string,
-): Promise<PopulatedFavoriteDocument[]> {
-  return Favorite.find({
-    userId,
-  })
+): Promise<PopulatedFavoriteDocument[]> => {
+  return (await Favorite.find({ userId })
     .populate<{ playerId: PlayerProfile }>('playerId')
     .sort({ createdAt: -1 })
-    .exec() as unknown as PopulatedFavoriteDocument[];
-}
+    .exec()) as PopulatedFavoriteDocument[];
+};
