@@ -1,14 +1,18 @@
 import { Request, Response } from 'express';
 import { getPlayerProfileWithFallback } from '../services/player.service';
-import { MatchType } from '../interfaces/player.interface';
+import { MatchType, RiotRegion } from '../interfaces/player.interface';
 import { resoleRegionsFromTag } from '../utils/utiles';
 
 export const fetchPlayerProfile = async (req: Request, res: Response) => {
   try {
-    const { name, tag } = req.params;
+    const { name, tag, routingRegion } = req.params;
     const riotName = decodeURIComponent(Array.isArray(name) ? name[0] : name);
     const riotTag = decodeURIComponent(Array.isArray(tag) ? tag[0] : tag);
-    if (!riotName || !riotTag) {
+    const Region = decodeURIComponent(
+      Array.isArray(routingRegion) ? routingRegion[0] : routingRegion,
+    );
+    console.log(riotName, riotTag, Region);
+    if (!riotName || !riotTag || !Region) {
       return res.status(400).json({
         error: 'Riot Name and Tag are required (e.g., /EUW/Name/Tag)',
       });
@@ -19,12 +23,12 @@ export const fetchPlayerProfile = async (req: Request, res: Response) => {
     const masteryPage = Number(req.query.masteryPage) || 1;
     const masteryPageSize = Number(req.query.masteryPageSize) || 10;
     const matchType = req.query.matchType as MatchType;
-    const { platformRegion, routingRegion } = resoleRegionsFromTag(riotTag);
+    const { platformRegion } = resoleRegionsFromTag(riotTag);
 
     const profile = await getPlayerProfileWithFallback(
       riotName,
       riotTag,
-      routingRegion,
+      Region as RiotRegion,
       platformRegion,
       {
         matchPage,

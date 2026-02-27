@@ -26,7 +26,7 @@ const PlayerSchema = new Schema<PlayerProfile>(
     profileIconId: { type: Number },
     summonerLevel: { type: Number, default: 1 },
     platform: { type: String, default: 'euw1' },
-    ranked: { type: RankedSchema, default: {} },
+    ranked: { type: [RankedSchema], default: {} },
   },
   { timestamps: true },
 );

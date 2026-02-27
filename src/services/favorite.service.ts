@@ -23,7 +23,9 @@ export const getUserFavorites = async (
   userId: string,
 ): Promise<PopulatedFavoriteDocument[]> => {
   return (await Favorite.find({ userId })
-    .populate<{ playerId: PlayerProfile }>('playerId')
+    .populate<{
+      playerId: PlayerProfile;
+    }>('playerId')
     .sort({ createdAt: -1 })
     .exec()) as PopulatedFavoriteDocument[];
 };

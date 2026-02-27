@@ -29,8 +29,9 @@ async function createOrUpdateDB(
 export const getAccountByRiotId = async (
   gameName: string,
   tagLine: string,
+  routingRegion: string,
 ): Promise<RiotAccount> => {
-  const { platformRegion, routingRegion } = resoleRegionsFromTag(tagLine);
+  const { platformRegion } = resoleRegionsFromTag(tagLine);
   const cacheKey = `basic:${platformRegion}:${gameName}${tagLine}`;
 
   const cached = await redisClient.get(cacheKey);
@@ -160,7 +161,7 @@ export const getPlayerProfileWithFallback = async (
 
   let targetPuuid = dbPlayer?.puuid;
   if (!targetPuuid) {
-    const account = await getAccountByRiotId(gameName, tagLine);
+    const account = await getAccountByRiotId(gameName, tagLine, routingRegion);
     targetPuuid = account.puuid;
   }
 
