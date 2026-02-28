@@ -40,3 +40,7 @@ export const getUserFavorites = async (
   ]);
   return { data, total, pages: Math.ceil(total / limit) };
 };
+export const getFavoriteIds = async (userId: string): Promise<string[]> => {
+  const favorites = await Favorite.find({ userId }).select('playerId').lean();
+  return favorites.map((f) => String(f.playerId));
+};

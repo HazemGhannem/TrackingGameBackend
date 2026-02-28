@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import {
   addFavorite,
+  getFavoriteIds,
   getUserFavorites,
   removeFavorite,
 } from '../services/favorite.service';
@@ -36,6 +37,15 @@ export async function list(req: AuthRequest, res: Response) {
     const limit = Number(req.query.limit) || 10;
     const result = await getUserFavorites(String(userId), page, limit);
     res.status(200).json(result);
+  } catch (err: any) {
+    res.status(400).json({ error: err.message });
+  }
+}
+export async function listFavoriteIds(req: AuthRequest, res: Response) {
+  try {
+    const userId = String(req.user!._id);
+    const ids = await getFavoriteIds(userId);
+    res.status(200).json({ ids });
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }
