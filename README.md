@@ -64,3 +64,15 @@ MONGO_URI=mongodb://localhost:27017/your-db
 REDIS_URL=redis://localhost:6379
 RIOT_API_KEY=your-riot-api-key
 FRONTEND_URL=http://localhost:3000
+```
+---
+## Authenticity / AI Policy
+
+I used **Claude** to help generate some Next components 
+
+I **reviewed, modified, and verified all AI-suggested code myself** to ensure it works correctly, fits my project, and follows best practices.  
+Specifically:  
+
+- Adjusted generated components to integrate with Redux and the backend API.  
+- Fixed TypeScript types and interfaces for proper type safety.
+## All final code in this repository has been reviewed and tested manually.
