@@ -10,7 +10,7 @@ export const isAuthenticated = async (
   next: NextFunction,
 ) => {
   try {
-    const token = req.cookies?.esports_token;
+    const token = req.cookies?.token;
 
     if (!token) {
       return next(new AppError('Unauthorized', 401));
