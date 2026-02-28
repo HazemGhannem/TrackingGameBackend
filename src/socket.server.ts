@@ -10,7 +10,7 @@ const userSockets = new Map<string, Set<string>>();
 export function initSocket(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.CLIENT_URL || 'http://localhost:3000',
+      origin: process.env.FRONTEND_URL || 'http://localhost:3000',
       credentials: true,
     },
   });
