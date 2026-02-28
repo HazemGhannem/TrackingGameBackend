@@ -27,3 +27,11 @@ export const login = async (req: Request, res: Response) => {
     res.status(err.statusCode || 401).json({ error: err.message });
   }
 };
+export const logout = async (req: Request, res: Response) => {
+  res.clearCookie('token', {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'none',
+  });
+  res.status(200).json({ message: 'Logged out' });
+};
