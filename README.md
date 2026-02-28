@@ -26,6 +26,33 @@ A backend service for tracking League of Legends players’ live games and notif
 - **Node-Cron** – Scheduled polling jobs  
 
 ---
+---
+
+## Problem Chosen & Why it Matters
+
+I built this project because I like to get notifications when my friends play games. This solves my own problem and can help other users follow their favorite players in real-time.
+
+---
+
+## What I’d Build Next
+
+Given more time, I would add a **tournament league feature** where users can:
+
+- Add players to tournaments.
+- Join tournaments for prize money.
+- Track tournament progress in real-time.
+
+---
+
+## Install & Run Instructions
+
+```bash
+npm install
+npm run dev
+```
+
+---
+
 
 ## Environment Variables
 
