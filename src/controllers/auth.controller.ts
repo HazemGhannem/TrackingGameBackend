@@ -16,22 +16,17 @@ export const login = async (req: Request, res: Response) => {
     console.log(req.body, 'hel');
     const { email, password } = req.body;
     const result = await loginUser({ email, password });
-    res.cookie('token', result.token, {
-      httpOnly: true,
-      secure: true,  
-      sameSite: 'none',  
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
+   
     res.status(200).json(result);
   } catch (err: any) {
     res.status(err.statusCode || 401).json({ error: err.message });
   }
 };
-export const logout = async (req: Request, res: Response) => {
-  res.clearCookie('token', {
-    httpOnly: true,
-    secure: true,
-    sameSite: 'none',
-  });
-  res.status(200).json({ message: 'Logged out' });
-};
+// export const logout = async (req: Request, res: Response) => {
+//   res.clearCookie('token', {
+//     httpOnly: true,
+//     secure: true,
+//     sameSite: 'none',
+//   });
+//   res.status(200).json({ message: 'Logged out' });
+// };
