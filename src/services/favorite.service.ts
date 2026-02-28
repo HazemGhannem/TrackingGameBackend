@@ -21,11 +21,22 @@ export const removeFavorite = async (favoriteId: string): Promise<void> => {
 
 export const getUserFavorites = async (
   userId: string,
-): Promise<PopulatedFavoriteDocument[]> => {
-  return (await Favorite.find({ userId })
-    .populate<{
-      playerId: PlayerProfile;
-    }>('playerId')
-    .sort({ createdAt: -1 })
-    .exec()) as PopulatedFavoriteDocument[];
+  page: number = 1,
+  limit: number = 10,
+): Promise<{
+  data: PopulatedFavoriteDocument[];
+  total: number;
+  pages: number;
+}> => {
+  const skip = (page - 1) * limit;
+  const [data, total] = await Promise.all([
+    Favorite.find({ userId })
+      .populate<{ playerId: PlayerProfile }>('playerId')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .exec() as Promise<PopulatedFavoriteDocument[]>,
+    Favorite.countDocuments({ userId }),
+  ]);
+  return { data, total, pages: Math.ceil(total / limit) };
 };

@@ -94,3 +94,37 @@ export interface MatchResult {
   championName: string;
   gameDurationMinutes: number;
 }
+
+export interface ChallengerEntry {
+  puuid: string;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  hotStreak: boolean;
+  veteran: boolean;
+  freshBlood: boolean;
+}
+
+export interface ChallengerLeagueResponse {
+  tier: string;
+  leagueId: string;
+  queue: string;
+  name: string;
+  entries: ChallengerEntry[];
+}
+
+export interface ChallengerPlayer {
+  rank: number;
+  puuid: string;
+  gameName: string;
+  tagLine: string;
+  profileIconId: number;
+  summonerLevel: number;
+  leaguePoints: number;
+  wins: number;
+  losses: number;
+  winRate: number;
+  hotStreak: boolean;
+  veteran: boolean;
+  freshBlood: boolean;
+}

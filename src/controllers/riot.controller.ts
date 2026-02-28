@@ -1,6 +1,9 @@
-import { Request, Response } from 'express';
-import { getPlayerProfileWithFallback } from '../services/player.service';
-import { MatchType, RiotRegion } from '../interfaces/player.interface';
+import { NextFunction, Request, Response } from 'express';
+import {
+  getPlayerProfileWithFallback,
+  getTop10Challengers,
+} from '../services/player.service';
+import { MatchType, PlatformRegion, RiotRegion } from '../interfaces/player.interface';
 import { resoleRegionsFromTag } from '../utils/utiles';
 
 export const fetchPlayerProfile = async (req: Request, res: Response) => {
@@ -47,5 +50,26 @@ export const fetchPlayerProfile = async (req: Request, res: Response) => {
         error.message ||
         'Internal Server Error',
     });
+  }
+};
+export const fetchTop10Challengers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+): Promise<void> => {
+  try {
+    const { platform } = req.params;
+
+
+    const data = await getTop10Challengers(platform as PlatformRegion);
+
+    res.status(200).json({
+      platform,
+      queue: 'RANKED_SOLO_5x5',
+      tier: 'CHALLENGER',
+      players: data,
+    });
+  } catch (error) {
+    next(error);
   }
 };

@@ -32,9 +32,10 @@ export async function remove(req: AuthRequest, res: Response) {
 export async function list(req: AuthRequest, res: Response) {
   try {
     const userId = req.user!._id;
-
-    const favorites = await getUserFavorites(userId);
-    res.status(200).json(favorites);
+    const page = Number(req.query.page) || 1;
+    const limit = Number(req.query.limit) || 10;
+    const result = await getUserFavorites(String(userId), page, limit);
+    res.status(200).json(result);
   } catch (err: any) {
     res.status(400).json({ error: err.message });
   }

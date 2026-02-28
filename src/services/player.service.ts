@@ -1,9 +1,12 @@
 import {
+  ChallengerLeagueResponse,
+  ChallengerPlayer,
   PaginationOptions,
   PlatformRegion,
   PlayerProfile,
   RiotAccount,
   RiotRegion,
+  routingMap,
 } from '../interfaces/player.interface';
 import PlayerModel from '../models/player.model';
 import { resoleRegionsFromTag } from '../utils/utiles';
@@ -190,4 +193,58 @@ export const getPlayerProfileWithFallback = async (
     );
 
   return { ...riotData, _id: savedPlayer._id, source: 'riot-api' };
+};
+export const getTop10Challengers = async (
+  platform: PlatformRegion,
+): Promise<ChallengerPlayer[]> => {
+  const routing = routingMap[platform];
+  if (!routing) throw new AppError(`Invalid platform: ${platform}`, 400);
+  const cacheKey = `challenger:top10:${platform}`;
+  const cached = await redisClient.get(cacheKey);
+  if (cached) return JSON.parse(cached);
+  // 1. Fetch challenger league
+  const leagueRes = await riotApi.get<ChallengerLeagueResponse>(
+    `https://${platform}.api.riotgames.com/lol/league/v4/challengerleagues/by-queue/RANKED_SOLO_5x5`,
+  );
+
+  // 2. Sort by LP desc, take top 10
+  const top10 = [...leagueRes.data.entries]
+    .sort((a, b) => b.leaguePoints - a.leaguePoints)
+    .slice(0, 10);
+
+  // 3. Fetch summoner + account info for each in parallel
+  const enriched = await Promise.all(
+    top10.map(async (entry, index) => {
+      const [summonerRes, accountRes] = await Promise.all([
+        riotApi.get(
+          `https://${platform}.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/${entry.puuid}`,
+        ),
+        riotApi.get(
+          `https://${routing}.api.riotgames.com/riot/account/v1/accounts/by-puuid/${entry.puuid}`,
+        ),
+      ]);
+
+      const winRate = Math.round(
+        (entry.wins / (entry.wins + entry.losses)) * 100,
+      );
+
+      return {
+        rank: index + 1,
+        puuid: entry.puuid,
+        gameName: accountRes.data.gameName as string,
+        tagLine: accountRes.data.tagLine as string,
+        profileIconId: summonerRes.data.profileIconId as number,
+        summonerLevel: summonerRes.data.summonerLevel as number,
+        leaguePoints: entry.leaguePoints,
+        wins: entry.wins,
+        losses: entry.losses,
+        winRate,
+        hotStreak: entry.hotStreak,
+        veteran: entry.veteran,
+        freshBlood: entry.freshBlood,
+      } satisfies ChallengerPlayer;
+    }),
+  );
+  await redisClient.set(cacheKey, JSON.stringify(enriched), 'EX', 300); // 5 min cache
+  return enriched;
 };
