@@ -1,4 +1,7 @@
-import { LiveGameData, LiveGameParticipant } from '../interfaces/LiveGame.types';
+import {
+  LiveGameData,
+  LiveGameParticipant,
+} from '../interfaces/LiveGame.types';
 import redisClient from './redis.service';
 import {
   MatchResult,
@@ -7,7 +10,7 @@ import {
   RiotRegion,
   TagToPlatformTag,
 } from '../interfaces/player.interface';
-import { riotApi } from './axios';
+import { riotApi } from '../utils/axios';
 
 export async function getLiveGame(
   puuid: string,
@@ -18,12 +21,12 @@ export async function getLiveGame(
   const url = `https://${host}.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/${puuid}`;
 
   try {
-      const { data } = await riotApi.get<LiveGameData>(url);
-      data.participants = await resolveChampionNames(data.participants);
+    const { data } = await riotApi.get<LiveGameData>(url);
+    data.participants = await resolveChampionNames(data.participants);
     console.log(
       `[Spectator] ✅ ${puuid.slice(0, 12)}... is IN-GAME gameId=${data.gameId}`,
     );
-     
+
     return data;
   } catch (err: any) {
     if (err.response?.status === 404) return null;

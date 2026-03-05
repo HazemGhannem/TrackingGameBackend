@@ -1,37 +1,25 @@
-import mongoose from 'mongoose';
 import { MONGO_URI } from './env';
+import mongoose from 'mongoose';
+import { logger } from '../utils/logger';
 
-mongoose.set('strictQuery', true);
-
-const connectDB = async (): Promise<void> => {
-  if (!MONGO_URI) {
-    throw new Error('MONGO_URI not defined in environment variables');
-  }
-
+export default async function connectDB(): Promise<void> {
   try {
-    await mongoose.connect(MONGO_URI, {
-      autoIndex: false,
-      maxPoolSize: 10,
-      serverSelectionTimeoutMS: 5000,
-    });
-
-    mongoose.connection.on('connected', () => {
-      console.info(`MongoDB connected: ${mongoose.connection.name}`);
-    });
-
-    mongoose.connection.on('error', (err) => {
-      console.error('MongoDB connection error:', err);
-      process.exit(1);
-    });
-
-    mongoose.connection.on('disconnected', () => {
-      console.warn('MongoDB disconnected');
-    });
+    await mongoose.connect(MONGO_URI);
+    logger.info('MongoDB connected');
   } catch (err) {
-    console.error('Failed to connect to MongoDB:', err);
+    logger.error({ err }, 'MongoDB connection failed');
     process.exit(1);
   }
-};
 
-export default connectDB;
-export { connectDB };
+  mongoose.connection.on('disconnected', () => {
+    logger.warn('MongoDB disconnected');
+  });
+
+  mongoose.connection.on('reconnected', () => {
+    logger.info('MongoDB reconnected');
+  });
+
+  mongoose.connection.on('error', (err) => {
+    logger.error({ err }, 'MongoDB error');
+  });
+}

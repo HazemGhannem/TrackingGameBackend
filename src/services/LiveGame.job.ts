@@ -1,6 +1,4 @@
-import cron from 'node-cron';
 import Favorite from '../models/favorite.model';
-import redisClient from '../services/redis.service';
 import { notifyUser } from '../socket.server';
 import { PlayerMapEntry, RedisGameEntry } from '../interfaces/LiveGame.types';
 import {
@@ -8,79 +6,69 @@ import {
   getLiveGame,
   platformToRouting,
 } from './spectator.service';
-import { PlatformRegion } from '../interfaces/player.interface';
-import { createLiveGame, deleteLiveGame } from '../services/LiveGame.service';
+import { createLiveGame, deleteLiveGame } from './LiveGame.service';
+import { safeRedisGet, safeRedisSetex } from './redis.service';
+import { logger } from '../utils/logger';
+
 const REDIS_TTL = 60 * 60 * 4;
-const POLL_CRON = '*/2 * * * *';
-const MATCH_DELAY = 10_000;
+const MATCH_DELAY = 30_000;  
 
-async function pollTrackedPlayers() {
-  console.log('[Poller] Poll cycle started');
-  try {
-    const favorites = await Favorite.find({})
-      .populate('playerId')
-      .populate('userId')
-      .lean();
-    console.log(`[Poller] Found ${favorites.length} favorites`);
+export async function pollTrackedPlayers() {
+  logger.info('Poll cycle started');
 
-    const playerMap = new Map<
-      string,
-      {
-        puuid: string;
-        playerName: string;
-        platform: PlatformRegion;
-        userIds: string[];
-      }
-    >();
+  const favorites = await Favorite.find({})
+    .populate('playerId', 'puuid gameName tagLine platform')  
+    .populate('userId', '_id')
+    .lean();
 
-    for (const fav of favorites) {
-      const player = fav.playerId as any;
-      const user = fav.userId as any;
-      if (!player?.puuid || !user?._id) continue;
+  logger.info({ count: favorites.length }, 'Favorites loaded');
 
-      const pid = String(player._id);
-      if (!playerMap.has(pid)) {
-        playerMap.set(pid, {
-          puuid: player.puuid,
-          playerName: `${player.gameName}#${player.tagLine}`,
-          platform: player.platform ?? 'euw1',
-          userIds: [],
-        });
-      }
-      playerMap.get(pid)!.userIds.push(String(user._id));
+  const playerMap = new Map<string, PlayerMapEntry & { userIds: string[] }>();
+
+  for (const fav of favorites) {
+    const player = fav.playerId as any;
+    const user = fav.userId as any;
+    if (!player?.puuid || !user?._id) continue;
+
+    const pid = String(player._id);
+    if (!playerMap.has(pid)) {
+      playerMap.set(pid, {
+        puuid: player.puuid,
+        playerName: `${player.gameName}#${player.tagLine}`,
+        platform: player.platform ?? 'euw1',
+        userIds: [],
+      });
     }
-
-    for (const [playerId, data] of playerMap) {
-      await checkPlayer(playerId, data);
-      await new Promise((r) => setTimeout(r, 200));
-    }
-  } catch (err: any) {
-    console.error('[Poller] Cycle error:', err.message);
+    playerMap.get(pid)!.userIds.push(String(user._id));
   }
-  console.log('[Poller] Poll cycle complete');
+
+  for (const [playerId, data] of playerMap) {
+    await checkPlayer(playerId, data);
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  logger.info('Poll cycle complete');
 }
 
-async function checkPlayer(playerId: string, data: PlayerMapEntry) {
+async function checkPlayer(
+  playerId: string,
+  data: PlayerMapEntry & { userIds: string[] },
+) {
   const { puuid, playerName, platform, userIds } = data;
   const key = `game:state:${playerId}`;
 
-  const raw = await redisClient.get(key);
+  const raw = await safeRedisGet(key);  
   const prev: RedisGameEntry = raw ? JSON.parse(raw) : { state: 'idle' };
 
   const liveGame = await getLiveGame(puuid, platform);
-  // console.log('[Data check] Poll cycle complete ' + JSON.stringify(liveGame));
   const inGame = !!liveGame;
 
-  console.log(
-    `[Poller] ${playerName} → liveGame=${inGame ? 'IN-GAME' : 'NOT-IN-GAME'} | prevState=${prev.state}`,
-  );
+  logger.debug({ playerName, inGame, prevState: prev.state }, 'Player check');
 
   if (inGame && prev.state === 'idle') {
-    // Player just started a game
     const me = liveGame!.participants.find((p) => p.puuid === puuid);
     const championName = me?.championName ?? 'Unknown';
     const championId = me?.championId ?? 0;
-
     const blue = liveGame!.participants.filter((p) => p.teamId === 100);
     const red = liveGame!.participants.filter((p) => p.teamId === 200);
 
@@ -92,8 +80,9 @@ async function checkPlayer(playerId: string, data: PlayerMapEntry) {
       championId,
       gameStartTime: liveGame!.gameStartTime,
     };
-    await redisClient.setex(key, REDIS_TTL, JSON.stringify(next));
-    console.log('[[[[[[redis]]]]]] ' + JSON.stringify(prev));
+
+    await safeRedisSetex(key, REDIS_TTL, JSON.stringify(next));
+
     await Promise.all(
       userIds.map((userId) =>
         createLiveGame({
@@ -109,6 +98,7 @@ async function checkPlayer(playerId: string, data: PlayerMapEntry) {
         }),
       ),
     );
+
     for (const userId of userIds) {
       notifyUser(userId, {
         type: 'GAME_START',
@@ -122,23 +112,25 @@ async function checkPlayer(playerId: string, data: PlayerMapEntry) {
       });
     }
 
-    console.log(
-      `[Poller] ${playerName} → IN-GAME (${liveGame!.gameMode})  game:${inGame}`,
+    logger.info(
+      { playerName, gameMode: liveGame!.gameMode },
+      'Player entered game',
     );
   } else if (!inGame && prev.state === 'in-game') {
-    // Player just ended a game
-
     await new Promise((r) => setTimeout(r, MATCH_DELAY));
 
     const result = await getLastMatchResult(puuid, platformToRouting(platform));
-    await redisClient.setex(
+
+    await safeRedisSetex(
       key,
       REDIS_TTL,
       JSON.stringify({ state: 'idle' } as RedisGameEntry),
     );
+
     await Promise.all(
       userIds.map((userId) => deleteLiveGame(userId, playerId)),
     );
+
     for (const userId of userIds) {
       notifyUser(userId, {
         type: 'GAME_END',
@@ -153,14 +145,9 @@ async function checkPlayer(playerId: string, data: PlayerMapEntry) {
       });
     }
 
-    console.log(
-      `[Poller] ${playerName} → IDLE (${result?.result ?? 'UNKNOWN'})`,
+    logger.info(
+      { playerName, result: result?.result ?? 'UNKNOWN' },
+      'Player left game',
     );
   }
-}
-
-export function startPollingJob() {
-  console.log('[Poller] Starting — interval: every 2 minutes');
-  cron.schedule(POLL_CRON, pollTrackedPlayers);
-  pollTrackedPlayers();
 }

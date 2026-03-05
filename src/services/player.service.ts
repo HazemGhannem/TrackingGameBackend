@@ -12,7 +12,7 @@ import PlayerModel from '../models/player.model';
 import { resoleRegionsFromTag } from '../utils/utiles';
 import redisClient from './redis.service';
 import { AppError } from '../utils/AppError';
-import { riotApi } from './axios';
+import { riotApi } from '../utils/axios';
 
 async function createOrUpdateDB(
   puuid: string,
